@@ -16,6 +16,7 @@ All notable changes to this project are documented here. The format follows [Kee
 - *Send version information to Supertext* (on by default; `version_reports: false` in YAML or `SUPERTEXT_VERSION_REPORTS=0` turns it off): after an update and when the key check result changes, the module sends the site URL, the module, Silverstripe CMS, PHP and SDK versions, whether a key is set, the key check result and the ping address to Supertext. No content, no API key and no personal data. Shown in the Supertext section; `supertext-check` sends a `check` report.
 - Public ping endpoint `/supertext/ping` that only echoes Supertext's challenge, so Supertext can check the site is reachable (404 with version reports off).
 - New table `SupertextState` for this state (run `sake db:build` after updating).
+- Support: the Supertext support form is linked in the README, the user guide and GitHub's "New issue" page.
 
 ### Changed
 

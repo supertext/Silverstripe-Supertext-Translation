@@ -114,3 +114,7 @@ Empty fields are skipped.
 | *Timed out waiting for the Supertext translation.* / *The Supertext service is currently unavailable.* | Supertext took too long or is unavailable. Try again later. |
 
 Errors are reported per locale: if one locale fails, the others are still translated.
+
+## Support
+
+Questions, problems or ideas: use the [Supertext support form](https://integrations.supertext.com/en/support?platform=silverstripe). Mention the version of Silverstripe and of the plugin, what you did and what you expected; an error message helps a lot. You get an answer by email, in your language.
