@@ -85,6 +85,7 @@ Lessons from the live API, apply them here: header `Authorization: Supertext-Aut
 - Before committing: `vendor/bin/phpunit` (or any PHPUnit with `tests/bootstrap.php`), `vendor/bin/phpstan analyse`, PHP lint (`find src tests demo/project/app -name '*.php' | xargs -n1 php -l`). CI also builds the demo image and runs `tests/demo-check.sh` against MySQL and the stand-in.
 - Silverstripe 6 has no PostgreSQL adapter: the demo and CI use MySQL.
 - Test UI changes in the demo project (`demo/stage-module.sh`, then see `docs/DEVELOPER.md` → Local development) and regenerate the screenshots they affect (`tests/docs/screenshots.mjs`).
+- Demo movie (`docs/images/demo.gif` in the README): `tests/docs/movie.mjs` (`npm run movie`, see "Demo movie" in `docs/DEVELOPER.md`); re-record it when the Supertext tab changes. Install and configuration movie (MP4 only, not committed): `tests/docs/movie-install.mjs` (`npm run movie:install`); re-record it when the installation steps, the Supertext section or the locale's Supertext fields change.
 - New settings go in `src/Supertext.php` or `src/Service/Translator.php` (config) **and** the settings table in `docs/INSTALLATION.md`.
 - Field rules live in `src/Service/Translator.php` (`collect`, `translatableFields`); keep "Field rules" in `docs/DEVELOPER.md` and "What is translated" in `docs/USER_GUIDE.md` in sync.
 - Strings: `_t()` with English, German, French and Italian in `lang/` (regenerate `en.yml` with the text collector, then update `de.yml`, `fr.yml` and `it.yml`).

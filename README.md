@@ -2,6 +2,8 @@
 
 Translate Silverstripe pages into your other Fluent locales with **Supertext AI**, right in the CMS.
 
+![Demo: an editor opens the English page “Swiss chocolate”, ticks Deutsch and Français on its Supertext tab, clicks Translate and checks the German draft with its translated content blocks](docs/images/demo.gif)
+
 Open a page, go to the **Supertext** tab, tick the locales and click **Translate**: the page name, navigation label, meta description, content and the page's Elemental blocks go to Supertext in one request per locale and come back as a draft of the page in each locale. Editors review, adjust and publish as usual.
 
 - Uses Fluent's own locales and its rules for which fields are localised
