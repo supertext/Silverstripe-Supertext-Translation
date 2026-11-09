@@ -97,7 +97,7 @@ async function pageId(page) {
   await shot(page, panel(page), '02-translated.png')
 
   // Ticking a locale that exists shows the overwrite option.
-  await page.locator('.supertext-targets input[value="de_CH"]').check()
+  await page.locator('input[name="SupertextTargets[de_CH]"]').check()
   await page.locator('.field.supertext-overwrite:not(.supertext-hidden)').waitFor()
   await page.mouse.click(1100, 700)
   await shot(page, panel(page), '03-overwrite-warning.png')
