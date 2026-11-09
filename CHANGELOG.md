@@ -4,6 +4,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## Unreleased
 
+## 1.0.0 — 2026-11-10
+
+First stable release. Every plugin release is now tested end to end against the live Supertext API (`.github/workflows/e2e.yml`).
+
 ### Added
 
 - PHP 8.5: the unit tests run on PHP 8.3, 8.4 and 8.5 in CI (was 8.3 only; the module already allowed PHP 8.3 and later).
