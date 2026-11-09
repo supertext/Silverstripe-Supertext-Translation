@@ -48,8 +48,30 @@ async function publicUrls(page) {
   }, { local: B, site: SITE, live: LIVE_API })
 }
 
+/**
+ * Dates and times of the run ("Translated with Supertext on Oct 17, 2026", "checked …") would
+ * change the images on every run: they always show the same moment.
+ */
+async function freezeDates(page) {
+  await page.evaluate(() => {
+    const rules = [
+      [/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \d{1,2}, \d{4}\b/g, 'Oct 6, 2026'],
+      [/\b\d{1,2}\/\d{1,2}\/\d{4}\b/g, '06/10/2026'],
+      [/\b\d{4}-\d{2}-\d{2}\b/g, '2026-10-06'],
+      [/\b\d{1,2}:\d{2}(:\d{2})?\b/g, '9:30'],
+    ]
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+      let v = n.nodeValue
+      for (const [re, fixed] of rules) v = v.replace(re, fixed)
+      if (v !== n.nodeValue) n.nodeValue = v
+    }
+  })
+}
+
 const panel = (page) => page.locator('.cms-content').first()
 async function shot(page, locator, name) {
+  await freezeDates(page)
   const r = await locator.boundingBox()
   await page.screenshot({ path: OUT + name, clip: { x: r.x, y: r.y, width: r.width, height: Math.min(r.height, 640) } })
 }
@@ -75,7 +97,7 @@ async function pageId(page) {
   await shot(page, panel(page), '02-translated.png')
 
   // Ticking a locale that exists shows the overwrite option.
-  await page.locator('.supertext-targets input[value="de_CH"]').check()
+  await page.locator('input[name="SupertextTargets[de_CH]"]').check()
   await page.locator('.field.supertext-overwrite:not(.supertext-hidden)').waitFor()
   await page.mouse.click(1100, 700)
   await shot(page, panel(page), '03-overwrite-warning.png')

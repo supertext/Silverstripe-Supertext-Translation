@@ -175,7 +175,28 @@ vendor/bin/phpunit
 - `tests/unit/LangFilesTest.php`: `de.yml`, `fr.yml` and `it.yml` have every string of `en.yml` with the same placeholders, tags and URLs, and `en.yml` has every `_t(self::class . '.KEY')` used in `src/`.
 - `tests/demo-check.sh` (CI): the demo image on MySQL with the stand-in, started twice: demo accounts created once and never duplicated, no passwords in the log, the Editors group and its permissions, the locales, `supertext-check`, translation of the sample page as the editor into three locales (page fields, ASCII URL segments, block titles and HTML with markup), the skip on a second run, the log, an HTML export → import round trip through the Supertext tab's endpoints as the editor (download headers, overwrite, skip, another system's file), and the Commando Center: the public ping (answer, 400, `no-store`), exactly one `installed` report and a `check` report sent to the stand-in (`SUPERTEXT_REPORT_URL`, read back from its `GET /reports`) without the key, and the state in `SupertextState`.
 
-CI (`.github/workflows/ci.yml`) on every push and pull request: **test** (PHP lint, PHPUnit), **phpstan** (see *Code quality and security checks*) and **demo** (builds `demo/Dockerfile`, runs `tests/demo-check.sh`).
+CI (`.github/workflows/ci.yml`) on every push and pull request: **test** (PHP lint, PHPUnit), **phpstan** (see *Code quality and security checks*) and **demo** (builds `demo/Dockerfile`, runs `tests/demo-check.sh`). `.github/workflows/e2e.yml` runs the end-to-end test against the real Supertext API and regenerates the docs screenshots (see *End-to-end tests*).
+
+## End-to-end tests
+
+The unit tests and `tests/demo-check.sh` use fakes. `.github/workflows/e2e.yml` also tests against the **real Supertext API**, so changes on Supertext's side (language codes, regional variants, formatting, rate limits) show up. It runs on every push to `main` that touches the module, the demo or the tests, on pull requests that change the E2E test or workflow, every Monday, and by hand (*Actions → E2E → Run workflow*). It builds the demo image once (Docker layer cache in GitHub Actions) and starts it twice on one MySQL service, each with its own database (`SILVERSTRIPE_DB_NAME`, `ss_live` and `ss_docs`), its own port and demo accounts made up for the run:
+
+1. **Real API** (repository or organization secret `SUPERTEXT_API_KEY`; without it these steps are skipped with a warning). Version reports are off (`SUPERTEXT_VERSION_REPORTS=0`), so CI runs don't appear in the Commando Center.
+   - `tests/e2e/features.mjs` asks the live `GET features` (cost-free, no plugin or SDK code) whether every pair the demo translates (`en` → `de-CH`, `fr-CH`, `it-CH`) is offered; a missing pair fails the run. Whether the plugin's own language list matches the API is the SDK's job (its own tests).
+   - `tests/e2e/live.mjs` (Playwright): the editor (`DEMO_EDITOR_*`) opens each English sample page in the CMS (*Welcome*, *Swiss chocolate, shipped worldwide*) and translates it on the **Supertext** tab into every other locale, then the database is checked: every page and content block has its own row in each locale (`SiteTree_Localised`, `Element_Localised`, `ElementContent_Localised`), nothing is published (no rows in the `_Live` tables), URL segments are ASCII, every field is filled and at least 80 % of them changed (single words like "Home" can stay the same), no `data-st-id`/placeholder is left, links, bold, italics, lists and shortcodes are kept, the text is in the target language (common words of each language counted) and de-CH has no "ß". The CMS must answer without an error message and the translation log without errors. Translating again with *Overwrite existing translations* must update the same rows (no duplicates). Each run translates the two sample pages twice into three languages (around 3,000 characters on the key's account).
+2. **Stand-in API**: the docs screenshots (see *Docs screenshots*), so the images don't change with each machine translation. Dates and times on screen are frozen by the script, so images only change when the UI does. If `docs/images/` changed, a second job (only on `main`) pushes the branch `automation/docs-screenshots` and opens (or updates) the pull request "Docs: regenerate screenshots". This needs *Settings → Actions → General → Allow GitHub Actions to create and approve pull requests*.
+
+If a run fails, the artifact `e2e-debug` has the result pages, the demo logs and the stand-in log. Locally:
+
+```bash
+cd tests/e2e && npm install && npx playwright install chromium
+# fresh demo (new database) with a real SUPERTEXT_API_KEY, e.g. on port 8081 with SILVERSTRIPE_DB_NAME=ss_live
+SUPERTEXT_API_KEY=… E2E_TARGETS=de-CH,fr-CH,it-CH node features.mjs
+BASE_URL=http://127.0.0.1:8081 DATABASE_URL=mysql://user:pass@127.0.0.1:3306/ss_live \
+  EDITOR_EMAIL=… EDITOR_PASSWORD=… npm run live
+```
+
+`live.mjs` also passes against the stand-in API (the stand-in returns real translations), which is how to try changes to it without a key.
 
 ## Demo (Railway)
 
