@@ -285,6 +285,13 @@ Dependabot (`.github/dependabot.yml`) opens weekly pull requests: minor and patc
 
 `.github/workflows/dependabot-merge.yml` merges a minor or patch package update by itself once every other check on its pull request has passed (it waits up to 85 minutes and leaves the pull request alone if a check fails). GitHub Actions updates and majors stay for a person: the workflow's built-in token can't merge changes to workflow files, and a major needs a decision. Merges by the workflow don't start CI on `main`; the weekly health check looks at `main`.
 
+Major updates the module can't take are ignored in `.github/dependabot.yml`:
+
+- `phpunit/phpunit` >=13: PHPUnit 13 needs PHP 8.4; the module supports PHP 8.3 (Silverstripe 6's minimum, CI tests 8.3).
+- `guzzlehttp/guzzle` >=8: silverstripe/framework 6 requires `guzzlehttp/guzzle` ^7.9, so Guzzle 8 can't be installed next to it.
+
+Remove a rule when the module's minimum version (PHP, Silverstripe) moves up far enough.
+
 ## Releasing
 
 Releases are published by `.github/workflows/release.yml` when the version is officially bumped; nobody tags or creates releases by hand.
