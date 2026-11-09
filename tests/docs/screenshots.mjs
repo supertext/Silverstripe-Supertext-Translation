@@ -136,10 +136,11 @@ async function pageId(page) {
   await page.waitForLoadState('networkidle')
   await page.waitForTimeout(800)
   const code = page.locator('[id$="SupertextCode_Holder"]').first()
-  const tone = page.locator('[id$="SupertextPoliteness_Holder"]').first()
-  await tone.scrollIntoViewIfNeeded()
+  // Down to the Translation review checkbox (below Form of address).
+  const last = page.locator('[id$="SupertextReview_Holder"]').first()
+  await last.scrollIntoViewIfNeeded()
   const a = await code.boundingBox()
-  const z = await tone.boundingBox()
+  const z = await last.boundingBox()
   await page.screenshot({ path: OUT + '08-locale-settings.png', clip: { x: a.x, y: a.y - 8, width: a.width, height: z.y + z.height - a.y + 16 } })
 }
 

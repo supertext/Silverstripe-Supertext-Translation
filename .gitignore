@@ -12,5 +12,7 @@
 .env
 /.phpunit.result.cache
 /.phpstan-cache/
+/tests/docs/movie/out/
+/tests/docs/movie/voice-cache/
 /tests/e2e/node_modules/
 /tests/e2e/artifacts/

@@ -51,6 +51,31 @@ test "$(q "select count(*) from Element_Localised where Locale='it_CH'")" = 3
 test "$(q "select Title from Element_Localised where Locale='fr_CH' order by RecordID limit 1")" = "De Berne vers le monde"
 test "$(q "select count(*) from SupertextTranslation where Status='translated'")" = 3
 
+# Export for translation → import translation through the Supertext tab's endpoints, as the editor.
+jar=$(mktemp)
+login=$(curl -sf -c "$jar" -b "$jar" "$B/Security/login")
+action=$(grep -o '<form[^>]*id="MemberLoginForm_LoginForm"[^>]*' <<< "$login" | grep -o 'action="[^"]*"' | sed 's/^action="//; s/"$//; s/&amp;/\&/g')
+token=$(grep -o 'name="SecurityID" value="[^"]*"' <<< "$login" | head -1 | sed 's/.*value="//; s/"$//')
+curl -sf -c "$jar" -b "$jar" -o /dev/null --data-urlencode "Email=$DEMO_EDITOR_EMAIL" --data-urlencode "Password=$DEMO_EDITOR_PASSWORD" \
+	--data-urlencode "SecurityID=$token" --data-urlencode 'AuthenticationMethod=SilverStripe\Security\MemberAuthenticator\MemberAuthenticator' \
+	--data-urlencode 'action_doLogin=Log in' "$B$action"
+edit=$(curl -sf -c "$jar" -b "$jar" "$B/admin/pages/edit/show/$PAGE")
+grep > /dev/null 'supertext-export' <<< "$edit"
+token=$(grep -o 'name="SecurityID" value="[^"]*"' <<< "$edit" | head -1 | sed 's/.*value="//; s/"$//')
+curl -sf -b "$jar" -D /tmp/export.headers -o /tmp/export.html -F "SecurityID=$token" -F source=en_US -F format=html -F 'targets[]=de_CH' \
+	"$B/admin/pages/edit/supertextExport/$PAGE"
+grep -qi "^content-disposition: attachment; filename=\"silverstripe-$PAGE-de_CH.html\"" /tmp/export.headers
+grep > /dev/null 'name="supertext:plugin" content="Silverstripe-Supertext-Translation"' /tmp/export.html
+sed 's/>Swiss chocolate, shipped worldwide</>Schweizer Schokolade aus der Datei</g' /tmp/export.html > /tmp/import.html
+imported=$(curl -sf -b "$jar" -F "SecurityID=$token" -F "file=@/tmp/import.html;type=text/html" -F overwrite=1 "$B/admin/pages/edit/supertextImport")
+jq -e '.html | contains("supertext-import-summary")' <<< "$imported" > /dev/null
+test "$(q "select Title from SiteTree_Localised where RecordID=$PAGE and Locale='de_CH'")" = "Schweizer Schokolade aus der Datei"
+# Without "overwrite" an existing translation is skipped; a file of another system is refused.
+curl -sf -b "$jar" -F "SecurityID=$token" -F "file=@/tmp/import.html;type=text/html" "$B/admin/pages/edit/supertextImport" | jq -e '.html | contains("skipped") or contains("übersprungen")' > /dev/null
+sed 's/Silverstripe-Supertext-Translation/Contao-Supertext-Translation/' /tmp/import.html > /tmp/other.html
+curl -sf -b "$jar" -F "SecurityID=$token" -F "file=@/tmp/other.html;type=text/html" "$B/admin/pages/edit/supertextImport" | jq -e '.html | contains("Contao-Supertext-Translation")' > /dev/null
+echo "translation files OK"
+
 # Commando Center: public ping (no login), version reports to the stand-in, state in SupertextState.
 test "$(curl -s "$B/supertext/ping?challenge=ci-challenge-0123456789")" = '{"ok":true,"plugin":"Silverstripe-Supertext-Translation","challenge":"ci-challenge-0123456789"}'
 test "$(curl -s -o /dev/null -w '%{http_code}' "$B/supertext/ping?challenge=bad")" = 400

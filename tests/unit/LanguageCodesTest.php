@@ -6,7 +6,7 @@ use PHPUnit\Framework\TestCase;
 use Supertext\Silverstripe\Api\LanguageCodes;
 use Supertext\Silverstripe\Api\SupertextException;
 
-/** No guessing: the locale's Supertext language, else an exact Supertext code, else unsupported_language. */
+/** The locale's Supertext language, else an exact Supertext code, else the SDK's default, else unsupported_language. */
 final class LanguageCodesTest extends TestCase
 {
     public function testLocaleThatIsASupertextCodeIsUsed(): void
@@ -18,9 +18,19 @@ final class LanguageCodesTest extends TestCase
         self::assertSame('zh-Hant', LanguageCodes::target('zh_hant'));
     }
 
-    public function testNoDefaultRegions(): void
+    public function testObviousDefaults(): void
     {
-        foreach (['de', 'en', 'es_ES', 'sl_SI', 'zh_CN', 'xx'] as $locale) {
+        self::assertSame('de-DE', LanguageCodes::target('de'));
+        self::assertSame('en-US', LanguageCodes::target('en'));
+        self::assertSame('es', LanguageCodes::target('es_ES'));
+        self::assertSame('sl', LanguageCodes::target('sl_SI'));
+        self::assertSame('zh-Hans', LanguageCodes::target('zh_CN'));
+        self::assertSame('zh-Hant', LanguageCodes::target('zh_TW'));
+    }
+
+    public function testNoGuessedRegions(): void
+    {
+        foreach (['en_IE', 'de_LI', 'fr_BE', 'gsw', 'xx'] as $locale) {
             try {
                 LanguageCodes::target($locale);
                 self::fail("$locale should need a Supertext language");
@@ -29,7 +39,35 @@ final class LanguageCodesTest extends TestCase
                 self::assertSame([$locale], $e->args);
             }
             self::assertNull(LanguageCodes::targetOrNull($locale));
+            self::assertNull(LanguageCodes::suggest($locale));
         }
+    }
+
+    public function testSuggestionForTheComboBox(): void
+    {
+        self::assertSame('de-CH', LanguageCodes::suggest('de_CH'));
+        self::assertSame('de-DE', LanguageCodes::suggest('de'));
+        self::assertSame('es', LanguageCodes::suggest('es_ES'));
+    }
+
+    public function testComboBoxOptions(): void
+    {
+        $english = LanguageCodes::options();
+        self::assertSame('German (Switzerland) (de-CH)', $english['de-CH']);
+        self::assertCount(count(LanguageCodes::targets()), $english);
+        self::assertCount(count($english), LanguageCodes::options('de_DE'));
+        if (class_exists(\Locale::class)) {
+            self::assertSame('Deutsch (Schweiz) (de-CH)', LanguageCodes::options('de_DE')['de-CH']);
+        }
+        self::assertStringEndsWith('(gsw-u-sd-chzh)', LanguageCodes::options('fr_FR')['gsw-u-sd-chzh']);
+    }
+
+    public function testSavedCodesInSupertextsSpelling(): void
+    {
+        self::assertSame('de-CH', LanguageCodes::canonical(' de_ch '));
+        self::assertSame('zh-Hant', LanguageCodes::canonical('ZH-HANT'));
+        self::assertSame('', LanguageCodes::canonical(''));
+        self::assertSame('xx-YY', LanguageCodes::canonical('xx-YY'), 'a code Supertext does not list is kept');
     }
 
     public function testTheMappingWins(): void

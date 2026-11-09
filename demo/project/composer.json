@@ -7,9 +7,9 @@
         "php": "^8.3",
         "silverstripe/recipe-plugin": "~2.1.0",
         "silverstripe/vendor-plugin": "~3.0.0",
-        "silverstripe/recipe-cms": "~6.2.0",
+        "silverstripe/recipe-cms": "~6.3.0",
         "silverstripe/login-forms": "~6.2.0",
-        "silverstripe/htmleditor-tinymce": "~1.1.0",
+        "silverstripe/htmleditor-tinymce": "~1.2.0",
         "tractorcow/silverstripe-fluent": "^8.2",
         "dnadesign/silverstripe-elemental": "^6.2",
         "supertext/silverstripe-supertext-translation": "@dev"

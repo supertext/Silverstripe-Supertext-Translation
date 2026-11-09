@@ -18,9 +18,11 @@ use Supertext\Silverstripe\Sdk\V1\SupertextException as SdkException;
  * Supertext accepts exactly the codes of its `GET features` list (Languages::TARGETS/SOURCES):
  * bare sources ("en"); targets regional only for German, English, French, Italian and Portuguese
  * ("de-CH", "en-US"), with a script for Chinese and Serbian ("zh-Hans", "sr-Latn"), bare for the
- * others ("es", "nl"). A locale is resolved by the mapping (each locale's "Supertext language"),
- * else a Supertext code equal to the locale apart from case and "_"/"-" ("de_CH" → "de-CH"),
- * else the error unsupported_language and nothing is sent. There are no default regions.
+ * others ("es", "nl"). A locale is resolved by the mapping (each locale's "Supertext language"
+ * combo box), else a Supertext code equal to the locale apart from case and "_"/"-" ("de_CH" →
+ * "de-CH"), else the SDK's default where one is obvious ("de" → "de-DE", "es_ES" → "es",
+ * "zh_TW" → "zh-Hant"), else the error unsupported_language and nothing is sent ("en_IE", "de_LI",
+ * "gsw" need a Supertext language).
  *
  * Has no Silverstripe dependencies.
  */
@@ -33,11 +35,47 @@ final class LanguageCodes
     }
 
     /**
+     * The targets for the combo box, sorted by name, as code => "Name (code)". The name is in
+     * $displayLocale where PHP's intl extension knows it ("Deutsch (Schweiz) (de-CH)"), else Supertext's
+     * English name.
+     *
+     * @return array<string, string>
+     */
+    public static function options(string $displayLocale = 'en'): array
+    {
+        $options = [];
+        foreach (Languages::targetOptions() as $target) {
+            $options[$target['code']] = self::displayName($target['code'], $target['name'], $displayLocale) . ' (' . $target['code'] . ')';
+        }
+        // Localized names: sorted in that language's order where intl can.
+        if (class_exists(\Collator::class) && !str_starts_with(strtolower($displayLocale), 'en')) {
+            $collator = new \Collator(str_replace('-', '_', $displayLocale));
+            uasort($options, static fn (string $a, string $b): int => (int) $collator->compare($a, $b));
+        }
+
+        return $options;
+    }
+
+    /** What the combo box preselects for a locale: the Supertext code equal to it, else the default ("de" → "de-DE"), else null. */
+    public static function suggest(string $locale): ?string
+    {
+        return Languages::suggestTarget($locale);
+    }
+
+    /** The saved value in Supertext's spelling ("de_ch" → "de-CH"); a code that isn't in the list stays as it is. */
+    public static function canonical(string $code): string
+    {
+        $code = trim($code);
+
+        return $code === '' ? '' : (Languages::matchTarget($code) ?? $code);
+    }
+
+    /**
      * Target code to send.
      *
      * @param array<string, string> $mapping locale → Supertext code (the locales' "Supertext language")
      *
-     * @throws SupertextException unsupported_language when the locale is neither mapped nor a Supertext code
+     * @throws SupertextException unsupported_language when the locale is not mapped, not a Supertext code and has no default
      */
     public static function target(string $locale, array $mapping = []): string
     {
@@ -88,6 +126,20 @@ final class LanguageCodes
     public static function supportsPoliteness(string $target): ?bool
     {
         return Languages::supportsPoliteness($target);
+    }
+
+    private static function displayName(string $code, string $english, string $displayLocale): string
+    {
+        // Unicode extensions (gsw-u-sd-chzh) aren't display names intl renders well: keep Supertext's name.
+        if (!class_exists(\Locale::class) || str_contains($code, '-u-') || str_starts_with(strtolower($displayLocale), 'en')) {
+            return $english;
+        }
+        $name = \Locale::getDisplayName(str_replace('-', '_', $code), str_replace('-', '_', $displayLocale));
+        if (!is_string($name) || strcasecmp($name, $code) === 0 || strcasecmp($name, str_replace('-', '_', $code)) === 0) {
+            return $english;
+        }
+
+        return mb_strtoupper(mb_substr($name, 0, 1)) . mb_substr($name, 1);
     }
 
     /**

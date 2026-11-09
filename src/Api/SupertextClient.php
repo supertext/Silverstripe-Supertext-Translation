@@ -8,6 +8,7 @@
 
 namespace Supertext\Silverstripe\Api;
 
+use Supertext\Silverstripe\PluginVersion;
 use Supertext\Silverstripe\Sdk\V1\ApiKeyCheck;
 use Supertext\Silverstripe\Sdk\V1\Client;
 use Supertext\Silverstripe\Sdk\V1\HtmlDocument;
@@ -32,6 +33,13 @@ final class SupertextClient
     public const LIVE = Protocol::LIVE_BASE_URL;
     public const STAGING = 'https://api.staging.supertext.com/v1/';
     public const TESTING = 'https://api.testing.supertext.com/v1/';
+
+    /**
+     * Supertext's review service (translation proxy of Supertext Localization Review). It speaks the
+     * same API and forwards to the live Supertext API, keeping every translation so reviewers can
+     * correct them on the website. Used for locales with *Translation review* on.
+     */
+    public const REVIEW_URL = 'https://localizationreview-production.up.railway.app/v1/';
 
     /** Stay well below the API's 1,000,000 character limit per document. */
     public const MAX_DOCUMENT_CHARACTERS = Protocol::DEFAULT_MAX_CHARACTERS;
@@ -60,6 +68,11 @@ final class SupertextClient
     private readonly Client $sdk;
     private readonly string $apiKey;
 
+    /** @var \Closure(): self|null builds the client for the review service (null: none) */
+    private readonly ?\Closure $makeReviewClient;
+
+    private ?self $reviewClient = null;
+
     /**
      * @param callable(string $method, string $url, array<string, string> $headers, ?string $body): array{status: int, body: string, headers: array<string, string>} $transport
      * @param callable(float $seconds): void|null $sleep tests: the SDK's clock then counts the slept time
@@ -71,8 +84,14 @@ final class SupertextClient
         private readonly int $pollTimeout = 180,
         float $pollInterval = 2.0,
         ?callable $sleep = null,
+        string $reviewUrl = '',
     ) {
         $this->apiKey = self::normalizeKey($apiKey);
+        $baseUrl = $baseUrl !== '' ? $baseUrl : self::LIVE;
+        $reviewUrl = trim($reviewUrl);
+        $this->makeReviewClient = $reviewUrl === '' || rtrim($reviewUrl, '/') === rtrim($baseUrl, '/')
+            ? null
+            : static fn (): self => new self($apiKey, $reviewUrl, $transport, $pollTimeout, $pollInterval, $sleep);
 
         $elapsed = 0.0;
         $sdkSleep = $sleep === null ? null : static function (float $seconds) use ($sleep, &$elapsed): void {
@@ -85,11 +104,12 @@ final class SupertextClient
 
         $this->sdk = new Client(
             $this->apiKey,
-            baseUrl: $baseUrl !== '' ? $baseUrl : self::LIVE,
+            baseUrl: $baseUrl,
             pollInterval: $pollInterval,
             timeout: (float) $pollTimeout,
             requestTimeout: 60.0,
-            userAgent: 'Silverstripe-Supertext-Translation',
+            // The module's version too, so Supertext and the review service see which release calls.
+            userAgent: Reporting::PLUGIN_NAME . '/' . PluginVersion::current(),
             transport: new CallableTransport($transport),
             sleep: $sdkSleep,
             clock: $clock,
@@ -118,6 +138,21 @@ final class SupertextClient
     public function hasApiKey(): bool
     {
         return $this->apiKey !== '';
+    }
+
+    /**
+     * The client for translations into a locale: the review service when the locale's *Translation
+     * review* is on (same key, transport and timeouts), else this one. Without a review URL (or when
+     * it is the API URL itself), always this one. Each document is uploaded, polled, downloaded and
+     * deleted by the same client.
+     */
+    public function forReview(bool $review): self
+    {
+        if (!$review || $this->makeReviewClient === null) {
+            return $this;
+        }
+
+        return $this->reviewClient ??= ($this->makeReviewClient)();
     }
 
     /**

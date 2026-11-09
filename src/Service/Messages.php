@@ -9,6 +9,7 @@
 namespace Supertext\Silverstripe\Service;
 
 use SilverStripe\Core\Convert;
+use Supertext\Silverstripe\Api\FileTransferException;
 use Supertext\Silverstripe\Api\SupertextException;
 use Supertext\Silverstripe\PluginHealth\KeyCheck;
 
@@ -20,6 +21,9 @@ final class Messages
 
     public static function of(\Throwable $e): string
     {
+        if ($e instanceof FileTransferException) {
+            return self::file($e);
+        }
         if (!$e instanceof SupertextException || $e->reason === '') {
             return $e->getMessage();
         }
@@ -51,6 +55,25 @@ final class Messages
         }
 
         return $e->detail !== '' ? $text . ' (' . $e->detail . ')' : $text;
+    }
+
+    /** Errors of "Export for translation" / "Import translation" in the CMS user's language. */
+    public static function file(FileTransferException $e): string
+    {
+        $arg = (string) ($e->args[0] ?? '');
+
+        return match ($e->reason) {
+            'nothing_to_translate' => _t(self::class . '.FILE_NOTHING_TO_TRANSLATE', 'Nothing to translate.'),
+            'invalid_request' => _t(self::class . '.FILE_INVALID_REQUEST', 'Choose a file format and at least one locale (exactly one for HTML).'),
+            'invalid_file' => _t(self::class . '.FILE_INVALID_FILE', 'This file isn\'t a valid XLIFF or HTML translation file.'),
+            'missing_metadata' => _t(self::class . '.FILE_MISSING_METADATA', 'This file wasn\'t exported by the Supertext module, or its header was removed.'),
+            'too_large' => _t(self::class . '.FILE_TOO_LARGE', 'The file is too large (at most 10 MB).'),
+            'other_system' => _t(self::class . '.FILE_OTHER_SYSTEM', 'This file belongs to another system ({plugin}).', ['plugin' => $arg]),
+            'not_found' => _t(self::class . '.FILE_NOT_FOUND', 'The page this file was exported from no longer exists.'),
+            'no_language' => _t(self::class . '.FILE_NO_LANGUAGE', 'The site has no locale {language}.', ['language' => $arg]),
+            'no_file' => _t(self::class . '.FILE_NO_FILE', 'Choose a file to import.'),
+            default => $e->getMessage(),
+        };
     }
 
     /**

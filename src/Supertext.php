@@ -18,12 +18,15 @@ use TractorCow\Fluent\Model\Locale;
  *   Supertext\Silverstripe\Supertext:
  *     environment: live        # live | staging | testing
  *     api_url: ''              # custom base URL; SUPERTEXT_API_URL wins
+ *     review_url: 'https://…/v1/'  # Supertext's review service for locales with Translation review
+ *                              # ('' = review off everywhere); SUPERTEXT_REVIEW_URL (non-empty) wins
  *     timeout: 180             # seconds per locale
  *     version_reports: true    # "Send version information to Supertext"; SUPERTEXT_VERSION_REPORTS wins
  *
  * The Supertext language of each Fluent locale is set on the locale (LocaleExtension): together
  * they are the language mapping (locale → Supertext code). A locale without one that is itself a
  * Supertext code (de_CH → de-CH) is sent as that code; any other locale has no Supertext language.
+ * Translations into a locale with *Translation review* ticked (SupertextReview) go through review_url.
  *
  * The API key comes from the SUPERTEXT_API_KEY environment variable. Administrators create a
  * Supertext account at SIGNUP_URL and generate the key at API_KEY_URL (Admin role required).
@@ -45,6 +48,9 @@ class Supertext implements PermissionProvider
 
     private static string $api_url = '';
 
+    /** Supertext's review service, for locales with "Translation review" on ('' = off everywhere). */
+    private static string $review_url = SupertextClient::REVIEW_URL;
+
     private static int $timeout = 180;
 
     private static float $poll_interval = 2.0;
@@ -62,6 +68,17 @@ class Supertext implements PermissionProvider
         $url = (string) (Environment::getEnv('SUPERTEXT_API_URL') ?: static::config()->get('api_url'));
 
         return SupertextClient::baseUrlFor((string) static::config()->get('environment'), $url);
+    }
+
+    /** The review service's base URL: SUPERTEXT_REVIEW_URL if set (non-empty), else review_url ('' = review off). */
+    public function reviewUrl(): string
+    {
+        $env = Environment::getEnv('SUPERTEXT_REVIEW_URL');
+        if (is_string($env) && trim($env) !== '') {
+            return trim($env);
+        }
+
+        return trim((string) static::config()->get('review_url'));
     }
 
     public function timeout(): int
@@ -122,6 +139,12 @@ class Supertext implements PermissionProvider
         return in_array($value, ['more', 'less'], true) ? $value : '';
     }
 
+    /** Whether translations into this locale go through Supertext's review service ("Translation review"). */
+    public static function review(Locale $locale): bool
+    {
+        return (bool) $locale->getField('SupertextReview');
+    }
+
     /** Whether version reports are on: the version_reports setting, overridden by SUPERTEXT_VERSION_REPORTS. */
     public function versionReportsEnabled(): bool
     {
@@ -160,6 +183,10 @@ class Supertext implements PermissionProvider
         };
     }
 
+    /**
+     * The Supertext client. Translations into a locale with *Translation review* use
+     * client()->forReview(true); the key check, reports and translation files always use this one.
+     */
     public function client(): SupertextClient
     {
         return new SupertextClient(
@@ -167,7 +194,8 @@ class Supertext implements PermissionProvider
             $this->baseUrl(),
             $this->transport(),
             $this->timeout(),
-            (float) static::config()->get('poll_interval')
+            (float) static::config()->get('poll_interval'),
+            reviewUrl: $this->reviewUrl(),
         );
     }
 

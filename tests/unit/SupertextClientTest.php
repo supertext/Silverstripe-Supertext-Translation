@@ -15,7 +15,7 @@ final class SupertextClientTest extends TestCase
     private array $timeouts = [];
 
     /** @param callable(string, string, ?string): array{status: int, body: string, headers?: array<string, string>} $handler */
-    private function client(callable $handler, string $key = 'test-key'): SupertextClient
+    private function client(callable $handler, string $key = 'test-key', string $reviewUrl = ''): SupertextClient
     {
         $transport = function (string $method, string $url, array $headers, ?string $body, float $timeout = 0.0) use ($handler): array {
             $this->calls[] = compact('method', 'url', 'headers', 'body');
@@ -25,7 +25,7 @@ final class SupertextClientTest extends TestCase
         };
 
         return new SupertextClient($key, 'https://api.test/v1', $transport, 10, 0.01, static function (): void {
-        });
+        }, $reviewUrl);
     }
 
     public function testRunsTheFullProtocol(): void
@@ -270,5 +270,65 @@ final class SupertextClientTest extends TestCase
         self::assertSame(SupertextClient::LIVE, SupertextClient::baseUrlFor('live'));
         self::assertSame(SupertextClient::STAGING, SupertextClient::baseUrlFor('staging'));
         self::assertSame('http://127.0.0.1:8765/v1/', SupertextClient::baseUrlFor('live', 'http://127.0.0.1:8765/v1/'));
+    }
+
+    /** @return array{status: int, body: string} */
+    private static function done(string $method, string $url): array
+    {
+        return match (true) {
+            $method === 'POST'                  => ['status' => 200, 'body' => '{"file_id":"f1"}'],
+            str_ends_with($url, '/status')      => ['status' => 200, 'body' => '{"status":"done"}'],
+            str_ends_with($url, '/translation') => ['status' => 200, 'body' => '<div data-st-id="0">Hallo</div>'],
+            default                             => ['status' => 200, 'body' => '{}'],
+        };
+    }
+
+    public function testReviewLanguagesGoThroughTheReviewService(): void
+    {
+        $client = $this->client(self::done(...), reviewUrl: 'https://review.test/v1/');
+
+        $review = $client->forReview(true);
+        self::assertNotSame($client, $review);
+        self::assertSame($review, $client->forReview(true), 'created once');
+        self::assertSame($client, $client->forReview(false));
+
+        self::assertSame([0 => 'Hallo'], $review->translateSegments([0 => ['text' => 'Hello', 'html' => false]], 'de-CH', 'en'));
+        // All four calls (upload, status, download, delete) with the review client, same key.
+        self::assertSame(
+            ['POST https://review.test/v1/translate/ai/file', 'GET https://review.test/v1/translate/ai/file/f1/status', 'GET https://review.test/v1/translate/ai/file/f1/translation', 'DELETE https://review.test/v1/translate/ai/file/f1'],
+            array_map(static fn (array $c): string => $c['method'] . ' ' . $c['url'], $this->calls)
+        );
+        self::assertSame('Supertext-Auth-Key test-key', $this->calls[0]['headers']['Authorization']);
+        self::assertMatchesRegularExpression('#Silverstripe-Supertext-Translation/\S+#', $this->calls[0]['headers']['User-Agent']);
+
+        // Other languages keep going directly to Supertext.
+        $this->calls = [];
+        $client->forReview(false)->translateDocument('<div data-st-id="0">Hello</div>', 'fr-CH', 'en');
+        foreach ($this->calls as $call) {
+            self::assertStringStartsWith('https://api.test/v1/', $call['url']);
+        }
+        self::assertCount(4, $this->calls);
+    }
+
+    public function testNoReviewServiceWithoutAReviewUrl(): void
+    {
+        $client = $this->client(self::done(...));
+        self::assertSame($client, $client->forReview(true));
+
+        $same = $this->client(self::done(...), reviewUrl: 'https://api.test/v1/');
+        self::assertSame($same, $same->forReview(true), 'review URL = API URL: no second client');
+
+        $client->forReview(true)->translateDocument('<div data-st-id="0">Hello</div>', 'de-CH', 'en');
+        self::assertStringStartsWith('https://api.test/v1/', $this->calls[0]['url']);
+    }
+
+    public function testTheDefaultReviewServiceIsSupertexts(): void
+    {
+        self::assertSame('https://localizationreview-production.up.railway.app/v1/', SupertextClient::REVIEW_URL);
+        if (!interface_exists(\SilverStripe\Security\PermissionProvider::class)) {
+            self::markTestSkipped('needs Silverstripe (composer install) for the module settings');
+        }
+        $setting = new \ReflectionProperty(\Supertext\Silverstripe\Supertext::class, 'review_url');
+        self::assertSame(SupertextClient::REVIEW_URL, $setting->getDefaultValue());
     }
 }

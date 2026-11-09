@@ -11,6 +11,8 @@ use SilverStripe\ORM\FieldType\DBHTMLVarchar;
 use SilverStripe\Security\Member;
 use SilverStripe\Security\Permission;
 use SilverStripe\Versioned\Versioned;
+use Supertext\Silverstripe\Api\FileTransfer;
+use Supertext\Silverstripe\Api\FileTransferException;
 use Supertext\Silverstripe\Api\LanguageCodes;
 use Supertext\Silverstripe\Api\SupertextClient;
 use Supertext\Silverstripe\Api\SupertextException;
@@ -152,14 +154,7 @@ class Translator
             return ['status' => TranslationLog::SKIPPED, 'message' => _t(self::class . '.SKIPPED', 'Already translated.')] + $result;
         }
 
-        $allowed = $this->inLocale($target, function () use ($record, $member) {
-            Permission::reset();
-            $member = $member ?: \SilverStripe\Security\Security::getCurrentUser();
-
-            return Permission::checkMember($member, Supertext::PERMISSION) && $this->reload($record)->canEdit($member);
-        });
-        Permission::reset();
-        if (!$allowed) {
+        if (!$this->canWriteIn($record, $target, $member)) {
             return ['status' => TranslationLog::ERROR, 'message' => _t(
                 self::class . '.FORBIDDEN',
                 'You are not allowed to edit this page in {locale}.',
@@ -184,6 +179,174 @@ class Translator
         }
 
         return ['created' => !$exists] + $result;
+    }
+
+    /** Whether the member may translate with Supertext and edit the record in the locale. */
+    private function canWriteIn(DataObject $record, string $locale, ?Member $member): bool
+    {
+        $allowed = $this->inLocale($locale, function () use ($record, $member) {
+            Permission::reset();
+            $member = $member ?: \SilverStripe\Security\Security::getCurrentUser();
+
+            return Permission::checkMember($member, Supertext::PERMISSION) && $this->reload($record)->canEdit($member);
+        });
+        Permission::reset();
+
+        return (bool) $allowed;
+    }
+
+    /**
+     * "Export for translation": the page's segments in the source locale (the same as for an API
+     * translation) as an XLIFF 1.2 file (one or more locales) or an HTML file (one locale).
+     *
+     * @param list<string> $targets locale codes
+     *
+     * @return array{name: string, type: string, body: string}
+     *
+     * @throws SupertextException|FileTransferException
+     */
+    public function exportFile(DataObject $record, string $source, array $targets, string $format, ?Member $member = null): array
+    {
+        $sourceLocale = $this->sourceLocale($record, $source);
+        if (!$this->canWriteIn($record, $source, $member)) {
+            throw new SupertextException(_t(self::class . '.FORBIDDEN', 'You are not allowed to edit this page in {locale}.', ['locale' => $sourceLocale->getTitle()]));
+        }
+        $codes = [];
+        foreach (array_unique($targets) as $target) {
+            $locale = Locale::getByLocale($target);
+            if (!$locale || $target === $source) {
+                throw new FileTransferException('no_language', [$target]);
+            }
+            // A file may go to any translator: an unmapped locale doesn't block the export.
+            $codes[$target] = Supertext::languageCodeOrNull($locale) ?? FileTransfer::fallbackCode($target);
+        }
+        try {
+            $sourceCode = Supertext::sourceCode($sourceLocale);
+        } catch (\Throwable) {
+            $sourceCode = FileTransfer::fallbackCode($source);
+        }
+        $units = $this->inLocale($source, fn () => $this->collect($this->reload($record)));
+
+        return (new FileTransfer())->export((int) $record->ID, $source, $sourceCode, self::fields($units), $codes, $format);
+    }
+
+    /**
+     * "Import translation": writes every job of an uploaded XLIFF or HTML file to the draft stage
+     * of its locale, like an API translation (locales with their own content only with $overwrite).
+     *
+     * @return list<array<string, mixed>> FileTransfer::import() results, `saved` with status, page, locale
+     *
+     * @throws FileTransferException for the whole file (invalid_file, missing_metadata, too_large)
+     */
+    public function importFile(string $content, bool $includeChanged, bool $overwrite, ?Member $member = null): array
+    {
+        $load = function (array $ref): array {
+            $record = Versioned::withVersionedMode(static function () use ($ref) {
+                Versioned::set_stage(Versioned::DRAFT);
+
+                return SiteTree::get()->setUseCache(false)->byID($ref['id']);
+            });
+            if (!$record instanceof DataObject) {
+                throw new FileTransferException('not_found');
+            }
+            foreach ([$ref['source'], $ref['target']] as $code) {
+                if (!Locale::getByLocale($code)) {
+                    throw new FileTransferException('no_language', [$code]);
+                }
+            }
+            if ($ref['source'] === $ref['target']) {
+                throw new FileTransferException('no_language', [$ref['target']]);
+            }
+
+            return [$record, $this->sourceLocale($record, $ref['source'])];
+        };
+
+        $current = function (array $ref) use ($load, $member): array {
+            [$record] = $load($ref);
+            if (!$this->canWriteIn($record, $ref['target'], $member)) {
+                throw new SupertextException($this->forbidden($ref['target']));
+            }
+
+            return self::fields($this->inLocale($ref['source'], fn () => $this->collect($this->reload($record))));
+        };
+
+        $write = function (array $ref, array $translations) use ($load, $member, $overwrite): array {
+            [$record] = $load($ref);
+            $target = $ref['target'];
+            $exists = self::existsIn($record, $target);
+            if ($exists && !$overwrite) {
+                return ['status' => 'skipped', 'title' => (string) $record->getTitle()];
+            }
+            if (!$this->canWriteIn($record, $target, $member)) {
+                throw new SupertextException($this->forbidden($target));
+            }
+            $units = $this->inLocale($ref['source'], fn () => $this->collect($this->reload($record)));
+            $byIndex = [];
+            foreach ($units as $i => $unit) {
+                if (isset($translations[self::unitKey($unit)])) {
+                    $byIndex[$i] = $translations[self::unitKey($unit)];
+                }
+            }
+            $this->inLocale($target, fn () => $this->apply($record, $units, $byIndex, $exists));
+            TranslationLog::create([
+                'RecordClass'  => $record->baseClass(),
+                'RecordID'     => $record->ID,
+                'RecordTitle'  => mb_substr((string) $record->getTitle(), 0, 255),
+                'SourceLocale' => $ref['source'],
+                'TargetLocale' => $target,
+                'Status'       => TranslationLog::TRANSLATED,
+                'Message'      => _t(self::class . '.IMPORTED', 'Imported from a translation file.'),
+                'MemberID'     => $member?->ID ?: 0,
+            ])->write();
+
+            return ['status' => $exists ? 'updated' : 'created', 'title' => (string) $record->getTitle()];
+        };
+
+        return (new FileTransfer())->import($content, $includeChanged, $current, $write);
+    }
+
+    /** The key of a collected value in translation files: `<class>#<id>.<field>`. */
+    public static function unitKey(array $unit): string
+    {
+        return $unit['class'] . '#' . $unit['id'] . '.' . $unit['field'];
+    }
+
+    /**
+     * @param list<array{class: string, id: int, field: string, html: bool, value: string, root: bool}> $units
+     *
+     * @return array<string, array{0: string, 1: bool}>
+     */
+    private static function fields(array $units): array
+    {
+        $fields = [];
+        foreach ($units as $unit) {
+            $fields[self::unitKey($unit)] = [$unit['value'], $unit['html']];
+        }
+
+        return $fields;
+    }
+
+    /** The source locale, if the record has content of its own there. */
+    private function sourceLocale(DataObject $record, string $source): Locale
+    {
+        $sourceLocale = Locale::getByLocale($source);
+        if (!$sourceLocale) {
+            throw new FileTransferException('no_language', [$source]);
+        }
+        if (!self::existsIn($record, $source)) {
+            throw new SupertextException(_t(
+                self::class . '.NO_SOURCE',
+                'This page has no content of its own in {locale} to translate from.',
+                ['locale' => $sourceLocale->getTitle()]
+            ));
+        }
+
+        return $sourceLocale;
+    }
+
+    private function forbidden(string $locale): string
+    {
+        return _t(self::class . '.FORBIDDEN', 'You are not allowed to edit this page in {locale}.', ['locale' => Locale::getByLocale($locale)?->getTitle() ?? $locale]);
     }
 
     /** The HTTP status of a key Supertext rejected during this translate() call, once. */
@@ -284,7 +447,8 @@ class Translator
             $segments[$i] = ['text' => $unit['value'], 'html' => $unit['html']];
         }
 
-        return $client->translateSegments($segments, $targetCode, $sourceCode, $politeness ?: 'default');
+        // Locales with "Translation review" go through Supertext's review service (same key and protocol).
+        return $client->forReview(Supertext::review($target))->translateSegments($segments, $targetCode, $sourceCode, $politeness ?: 'default');
     }
 
     /** Writes the translations to the draft stage of the current (target) locale. */
