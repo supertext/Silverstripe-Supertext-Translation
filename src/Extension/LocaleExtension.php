@@ -46,7 +46,7 @@ class LocaleExtension extends Extension
         $options += $targets;
         if ($current !== '' && !isset($options[$current])) {
             // A code set before (or one Supertext added later): kept and sent as it is.
-            $options[$current] = _t(self::class . '.UNKNOWN', '{code} (not in Supertext’s list)', ['code' => $current]);
+            $options[$current] = _t(self::class . '.UNKNOWN', '{code} (not in Supertext\'s list)', ['code' => $current]);
         }
 
         $code = $current !== '' ? $current : $suggested;
@@ -80,7 +80,7 @@ class LocaleExtension extends Extension
         $fields->addFieldToTab('Root.Main', CheckboxField::create('SupertextReview', _t(self::class . '.REVIEW', 'Translation review'))
             ->setDescription(_t(
                 self::class . '.REVIEW_HELP',
-                'Translations into this locale go through Supertext’s review service, so reviewers can check and correct them on the website with the Supertext Localization Review extension. Their corrections are used the next time the page is translated.'
+                'Translations into this locale go through Supertext\'s review service, so reviewers can check and correct them on the website with the Supertext Localization Review extension. Their corrections are used the next time the page is translated.'
             )));
     }
 
