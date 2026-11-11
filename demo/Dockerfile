@@ -1,6 +1,6 @@
 # Supertext Translation for Silverstripe: public demo (Railway). Build context = repository root:
 #   docker build -f demo/Dockerfile -t supertext-silverstripe-demo .
-FROM public.ecr.aws/docker/library/php:8.3-apache
+FROM public.ecr.aws/docker/library/php:8.5-apache
 
 ADD --chmod=0755 https://github.com/mlocati/docker-php-extension-installer/releases/download/2.13.2/install-php-extensions /usr/local/bin/
 RUN install-php-extensions mysqli pdo_mysql intl gd zip bcmath exif opcache \

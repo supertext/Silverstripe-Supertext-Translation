@@ -200,7 +200,7 @@ BASE_URL=http://127.0.0.1:8081 DATABASE_URL=mysql://user:pass@127.0.0.1:3306/ss_
 
 ## Demo (Railway)
 
-The public demo is a container built from `demo/Dockerfile`: PHP 8.3 with Apache, Silverstripe 6.3 with Fluent, Elemental and this module, locales English (`en_US`, default), Deutsch (`de_CH`), Français (`fr_CH`) and Italiano (`it_CH`) with formal tone, and a sample page with three content blocks. It runs on Railway in the `supertext-cms-demos` project, service `Silverstripe`, region EU West (Amsterdam): <https://silverstripe-production.up.railway.app/> (CMS: `/admin`). Data lives in a `silverstripe` database on the project's MySQL service.
+The public demo is a container built from `demo/Dockerfile`: PHP 8.5 with Apache, Silverstripe 6.3 with Fluent, Elemental and this module, locales English (`en_US`, default), Deutsch (`de_CH`), Français (`fr_CH`) and Italiano (`it_CH`) with formal tone, and a sample page with three content blocks. It runs on Railway in the `supertext-cms-demos` project, service `Silverstripe`, region EU West (Amsterdam): <https://silverstripe-production.up.railway.app/> (CMS: `/admin`). Data lives in a `silverstripe` database on the project's MySQL service.
 
 **Deploys:** Railway builds `main` of this repository (`railway.json` points it at `demo/Dockerfile`).
 
@@ -208,7 +208,7 @@ The public demo is a container built from `demo/Dockerfile`: PHP 8.3 with Apache
 
 | Path | Purpose |
 | --- | --- |
-| `Dockerfile` | PHP 8.3 + Apache (document root `demo/project/public`), PHP extensions, the module copied to `demo/module`, Composer install of `demo/project` |
+| `Dockerfile` | PHP 8.5 + Apache (document root `demo/project/public`), PHP extensions, the module copied to `demo/module`, Composer install of `demo/project` |
 | `docker/entrypoint.sh` | Every start: `DATABASE_URL` → `SS_DATABASE_*` (database `SILVERSTRIPE_DB_NAME`), `SS_BASE_URL` from `RAILWAY_PUBLIC_DOMAIN`, `.env` for later `sake` calls, `sake db:build --flush` (creates the database if missing), `sake tasks:supertext-demo-setup`, Apache on `$PORT` |
 | `router.php` | Router for PHP's built-in server (local development) |
 | `stage-module.sh` | Copies the module's files to `demo/module` for local installs |

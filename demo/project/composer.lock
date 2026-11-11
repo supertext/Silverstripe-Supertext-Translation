@@ -2966,16 +2966,16 @@
         },
         {
             "name": "silverstripe/framework",
-            "version": "6.3.3",
+            "version": "6.3.5",
             "source": {
                 "type": "git",
                 "url": "https://github.com/silverstripe/silverstripe-framework.git",
-                "reference": "f480c369196f315f263da898cbe1b8000642ef15"
+                "reference": "6820f1a091cccb1f2d2929cf27a4cc5d543b3cfb"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/silverstripe/silverstripe-framework/zipball/f480c369196f315f263da898cbe1b8000642ef15",
-                "reference": "f480c369196f315f263da898cbe1b8000642ef15",
+                "url": "https://api.github.com/repos/silverstripe/silverstripe-framework/zipball/6820f1a091cccb1f2d2929cf27a4cc5d543b3cfb",
+                "reference": "6820f1a091cccb1f2d2929cf27a4cc5d543b3cfb",
                 "shasum": ""
             },
             "require": {
@@ -3110,9 +3110,9 @@
             ],
             "support": {
                 "issues": "https://github.com/silverstripe/silverstripe-framework/issues",
-                "source": "https://github.com/silverstripe/silverstripe-framework/tree/6.3.3"
+                "source": "https://github.com/silverstripe/silverstripe-framework/tree/6.3.5"
             },
-            "time": "2026-11-05T00:07:05+00:00"
+            "time": "2026-11-11T04:38:02+00:00"
         },
         {
             "name": "silverstripe/htmleditor-tinymce",
@@ -3443,16 +3443,16 @@
         },
         {
             "name": "silverstripe/reports",
-            "version": "6.3.0",
+            "version": "6.3.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/silverstripe/silverstripe-reports.git",
-                "reference": "e05e8bf707053d97f91c90359637f655bde72c7d"
+                "reference": "d4ef1a4440502c7036c5ccd91d986f165bc2a66d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/silverstripe/silverstripe-reports/zipball/e05e8bf707053d97f91c90359637f655bde72c7d",
-                "reference": "e05e8bf707053d97f91c90359637f655bde72c7d",
+                "url": "https://api.github.com/repos/silverstripe/silverstripe-reports/zipball/d4ef1a4440502c7036c5ccd91d986f165bc2a66d",
+                "reference": "d4ef1a4440502c7036c5ccd91d986f165bc2a66d",
                 "shasum": ""
             },
             "require": {
@@ -3509,9 +3509,9 @@
             ],
             "support": {
                 "issues": "https://github.com/silverstripe/silverstripe-reports/issues",
-                "source": "https://github.com/silverstripe/silverstripe-reports/tree/6.3.0"
+                "source": "https://github.com/silverstripe/silverstripe-reports/tree/6.3.1"
             },
-            "time": "2026-08-27T01:15:23+00:00"
+            "time": "2026-11-06T01:07:35+00:00"
         },
         {
             "name": "silverstripe/session-manager",
@@ -3961,7 +3961,7 @@
             "dist": {
                 "type": "path",
                 "url": "../module",
-                "reference": "9f7d6ec95f6c1e7544ccaa7dd1b43205647d44b9"
+                "reference": "4ccec7adef3cae885b9d15e635ef31bf21b12e32"
             },
             "require": {
                 "guzzlehttp/guzzle": "^7.9",
@@ -3972,7 +3972,7 @@
             "require-dev": {
                 "cambis/silverstan": "^2.2",
                 "phpstan/phpstan": "^2.2.1",
-                "phpunit/phpunit": "^11.5"
+                "phpunit/phpunit": "^12.5"
             },
             "type": "silverstripe-vendormodule",
             "extra": {
