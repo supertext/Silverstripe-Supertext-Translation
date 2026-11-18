@@ -4,6 +4,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## Unreleased
 
+### Changed
+
+- Tested with Silverstripe framework 6.3.8 and Fluent 8.2.4: the demo and its CI check now run them (with Guzzle 7.16.3), and CI's database is MySQL 9.7 LTS (was 8.4).
+
 ## 1.0.0 — 2026-11-10
 
 First stable release. Every plugin release is now tested end to end against the live Supertext API (`.github/workflows/e2e.yml`).
