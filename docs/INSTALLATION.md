@@ -23,7 +23,7 @@ vendor/bin/sake db:build --flush
 `db:build` adds the tables `SupertextTranslation` (the translation log) and `SupertextState` (the module's own state, see [Version information and the API key check](#version-information-and-the-api-key-check)) and three fields to Fluent's locales. The module adds:
 
 - a **Supertext** tab to every page in the CMS (for users with the Supertext permission),
-- a **Supertext** section in the CMS menu: connection status, the latest API key check, the installed plugin version, *Test connection* (administrators), whether version information is sent to Supertext, the locales and the translation log,
+- a **Supertext** section in the CMS menu: connection status, the latest API key check, the installed plugin version, *Test connection* and *Send configuration to Supertext* (administrators), whether version information is sent to Supertext, the locales and the translation log,
 - *Supertext language*, *Form of address* and *Translation review* to each locale under **Locales**,
 - the public route `/supertext/ping` (see [The ping endpoint](#the-ping-endpoint)),
 - the tasks `supertext-translate` and `supertext-check`.
@@ -192,6 +192,8 @@ A report contains exactly: the site URL (Silverstripe's base URL: `SS_BASE_URL`,
 To turn it off, set `version_reports: false` in your YAML configuration (and `?flush`) or the environment variable `SUPERTEXT_VERSION_REPORTS=0`. Nothing is sent at all then, and the ping endpoint answers 404. The Supertext section shows whether it is on.
 
 **The API key check** runs whether or not version information is sent: on back-end requests that run the module (the Supertext section, a translation) when the key in `SUPERTEXT_API_KEY` is new or changed (compared by a fingerprint stored in the database, never the key itself), on **Test connection**, in the `supertext-check` task, and when Supertext rejects the key during a translation. It's Supertext's cost-free `features` call; nothing is translated or billed. Silverstripe keeps the key in the environment and the settings in YAML, so there is no settings form to check it on save. The Supertext section shows the latest result with its time: *the connection works*, *Supertext rejected the API key* and *no API key is set* (both with the links to create an account and generate a key), *Supertext can't be reached*, or *Supertext answered with an error*.
+
+**Send configuration to Supertext** (button in the Supertext section, below *Test connection*, administrators only) sends, only when you click it, the Silverstripe modules and themes installed on this site (Composer packages of the types `silverstripe-vendormodule`, `silverstripe-module` and `silverstripe-theme`: name and version) and every Fluent locale with the Supertext language it is translated into (e.g. `de_CH` → `de-CH`, empty when a locale has none), so Supertext support can spot conflicts and locales that can't be translated yet. Nothing else is sent; the report carries the site URL like every other. It sends right away, also shortly after a failed report, but only while version information is on; otherwise the CMS asks you to turn it on.
 
 The module keeps this state (what was reported last, the latest key check) in the table `SupertextState`.
 

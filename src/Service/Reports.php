@@ -7,9 +7,11 @@ use Psr\Log\LoggerInterface;
 use SilverStripe\Control\Director;
 use SilverStripe\Core\Environment;
 use SilverStripe\Core\Injector\Injector;
+use TractorCow\Fluent\Model\Locale;
 use Supertext\Silverstripe\Api\CallableTransport;
 use Supertext\Silverstripe\Api\Reporting;
 use Supertext\Silverstripe\PluginVersion;
+use Supertext\Silverstripe\PluginHealth\InstallationReporter;
 use Supertext\Silverstripe\PluginHealth\KeyCheck;
 use Supertext\Silverstripe\PluginHealth\ReporterResult;
 use Supertext\Silverstripe\Supertext;
@@ -133,6 +135,55 @@ final class Reports
         } catch (\Throwable) {
             return null;
         }
+    }
+
+    /**
+     * *Send configuration to Supertext*: the installed modules and themes and every Fluent locale's
+     * Supertext code, now (only while reports are on).
+     *
+     * @return array{enabled: bool, sent: bool, extensions: int, languages: int}
+     */
+    public static function sendConfiguration(): array
+    {
+        $extensions = InstallationReporter::normalizeExtensions(self::installedExtensions());
+        $languages = InstallationReporter::normalizeLanguages(self::languageMapping());
+        $enabled = Supertext::singleton()->versionReportsEnabled();
+        $result = $enabled ? self::reporting()->sendConfiguration($extensions, $languages) : null;
+
+        return ['enabled' => $enabled, 'sent' => (bool) $result?->sent, 'extensions' => \count($extensions), 'languages' => \count($languages)];
+    }
+
+    /**
+     * The installed Silverstripe modules and themes (Composer packages of the types silverstripe-vendormodule,
+     * silverstripe-module and silverstripe-theme): name and version only. Installed modules are active.
+     *
+     * @return list<array{name: string, version: string, active: bool, type: string}>
+     */
+    public static function installedExtensions(): array
+    {
+        $list = [];
+        foreach (['silverstripe-vendormodule' => 'module', 'silverstripe-module' => 'module', 'silverstripe-theme' => 'theme'] as $composerType => $type) {
+            foreach (array_unique(InstalledVersions::getInstalledPackagesByType($composerType)) as $package) {
+                $list[] = ['name' => $package, 'version' => (string) InstalledVersions::getPrettyVersion($package), 'active' => true, 'type' => $type];
+            }
+        }
+
+        return $list;
+    }
+
+    /**
+     * Every Fluent locale with the Supertext code it is translated into (null when it has none).
+     *
+     * @return list<array{code: string, supertext: ?string}>
+     */
+    public static function languageMapping(): array
+    {
+        $list = [];
+        foreach (Locale::get() as $locale) {
+            $list[] = ['code' => (string) $locale->Locale, 'supertext' => Supertext::languageCodeOrNull($locale)];
+        }
+
+        return $list;
     }
 
     public static function run(string $action, int $httpStatus = 401): ?ReporterResult

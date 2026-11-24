@@ -4,6 +4,12 @@ de:
     API_KEY: API-Schlüssel
     CHECKED_AT: 'geprüft {time}'
     CODE: Supertext-Sprache
+    CONFIG: "Konfiguration an Supertext senden"
+    CONFIG_FAILED: "Die Konfiguration konnte nicht gesendet werden. Versuchen Sie es später erneut."
+    CONFIG_HELP: "Sendet Supertext die auf dieser Website installierten Module und Themes (Name, Version) und ihre Supertext-Sprachzuordnungen, damit der Supertext-Support besser helfen kann. Sonst wird nichts übertragen."
+    CONFIG_OFF: "Aktivieren Sie die Versionsinformationen (version_reports), um die Konfiguration zu senden."
+    CONFIG_SENDING: "Wird gesendet …"
+    CONFIG_SENT: "Gesendet: {extensions} Module und Themes, {languages} Sprachen."
     CONNECTION: Verbindung
     DEFAULT: Standard
     FORMAL: 'Formell (Sie, vous)'

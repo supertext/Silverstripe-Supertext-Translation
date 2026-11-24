@@ -41,7 +41,7 @@ class SupertextAdmin extends ModelAdmin
         'translations' => ['dataClass' => TranslationLog::class, 'title' => 'Translations'],
     ];
 
-    private static array $allowed_actions = ['doTestConnection'];
+    private static array $allowed_actions = ['doTestConnection', 'doSendConfiguration'];
 
     private static array $required_permission_codes = [Supertext::PERMISSION];
 
@@ -70,6 +70,16 @@ class SupertextAdmin extends ModelAdmin
                     ->setAttribute('data-busy', _t(self::class . '.TESTING', 'Testing…'))
             );
         }
+        if (Permission::check('ADMIN')) {
+            // Below the connection table, next to Test connection: installed modules and language mapping, on demand.
+            $fields->unshift(LiteralField::create('SupertextConfigHelp', '<p class="supertext-help">' . Convert::raw2xml(_t(self::class . '.CONFIG_HELP', 'Sends Supertext the modules and themes installed on this site (name, version) and its Supertext language mappings, so Supertext support can help better. Nothing else is sent.')) . '</p>'));
+            $fields->unshift(
+                FormAction::create('doSendConfiguration', _t(self::class . '.CONFIG', 'Send configuration to Supertext'))
+                    ->addExtraClass('btn-outline-primary font-icon-upload supertext-test supertext-config')
+                    ->setUseButtonTag(true)
+                    ->setAttribute('data-busy', _t(self::class . '.CONFIG_SENDING', 'Sending…'))
+            );
+        }
         $fields->unshift(LiteralField::create('SupertextConnection', $this->connectionHtml()));
 
         return $form;
@@ -93,6 +103,28 @@ class SupertextAdmin extends ModelAdmin
         $response = $status === 200
             ? $this->getResponseNegotiator()->respond($this->getRequest())
             : HTTPResponse::create($message, $status);
+        $response->addHeader('X-Status', rawurlencode($message));
+
+        return $response;
+    }
+
+    public function doSendConfiguration(array $data, Form $form): HTTPResponse
+    {
+        if (!Permission::check('ADMIN')) {
+            throw new HTTPResponse_Exception('Action not allowed', 403);
+        }
+        $result = Reports::sendConfiguration();
+        if (!$result['enabled']) {
+            $message = _t(self::class . '.CONFIG_OFF', 'Turn on version information (version_reports) to send the configuration.');
+        } elseif (!$result['sent']) {
+            $message = _t(self::class . '.CONFIG_FAILED', "The configuration couldn't be sent. Try again later.");
+        } else {
+            $message = _t(self::class . '.CONFIG_SENT', 'Sent: {extensions} modules and themes, {languages} languages.', ['extensions' => $result['extensions'], 'languages' => $result['languages']]);
+        }
+
+        $response = $result['sent']
+            ? $this->getResponseNegotiator()->respond($this->getRequest())
+            : HTTPResponse::create($message, 400);
         $response->addHeader('X-Status', rawurlencode($message));
 
         return $response;

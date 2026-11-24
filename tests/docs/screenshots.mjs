@@ -92,7 +92,7 @@ async function pageId(page) {
   await shot(page, panel(page), '01-supertext-tab.png')
 
   await page.locator('button.supertext-translate').click()
-  await page.locator('.supertext-chip').first().waitFor({ timeout: 60_000 })
+  await page.locator('.supertext-chip').first().waitFor({ timeout: 300_000 }) // the real API takes a while
   await page.waitForTimeout(800)
   await shot(page, panel(page), '02-translated.png')
 

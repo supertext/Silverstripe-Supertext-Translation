@@ -19,6 +19,9 @@
         }
     ],
     "homepage": "https://github.com/Supertext/Silverstripe-Supertext-Translation",
+    "support": {
+        "docs": "https://github.com/supertext/Silverstripe-Supertext-Translation/tree/main#supertext-translation-for-silverstripe"
+    },
     "require": {
         "php": "^8.3",
         "silverstripe/cms": "^6",

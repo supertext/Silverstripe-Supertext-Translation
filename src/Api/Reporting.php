@@ -76,7 +76,8 @@ final class Reporting
         return InstallationReporter::pingResponse(\is_string($challenge) ? $challenge : null, self::PLUGIN_NAME, $enabled);
     }
 
-    public function reporter(): InstallationReporter
+    /** @param (callable(): iterable<mixed>)|null $languages the language mapping every report of this reporter carries */
+    public function reporter(?callable $languages = null): InstallationReporter
     {
         return new InstallationReporter(
             enabled: $this->enabled,
@@ -93,6 +94,7 @@ final class Reporting
             callbackUrl: self::callbackUrl($this->siteUrl),
             reportUrl: $this->reportUrl,
             transport: $this->transport !== null ? new PluginHealthTransport($this->transport) : null,
+            languages: $languages,
         );
     }
 
@@ -126,6 +128,30 @@ final class Reporting
                 self::REPORT_CHECK => $reporter->reportCheck($state),
                 default => $reporter->onRequest($state, $apiKey),
             };
+            $json = json_encode($result->state, JSON_UNESCAPED_SLASHES);
+            if ($json !== false && $json !== $stored) {
+                $this->store->save($json);
+            }
+
+            return $result;
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * *Send configuration to Supertext*: the installed modules and themes and the language mapping in
+     * one `extensions` report, now (also after a recent failure), only while reports are on. Never
+     * throws: null if something failed.
+     *
+     * @param list<array{name: string, version?: string, active?: bool, type?: string}> $extensions
+     * @param list<array{code: string, supertext: ?string}>                            $languages
+     */
+    public function sendConfiguration(array $extensions, array $languages): ?ReporterResult
+    {
+        try {
+            $stored = $this->store->load();
+            $result = $this->reporter(static fn (): array => $languages)->sendExtensions(ReporterState::from($stored), $extensions);
             $json = json_encode($result->state, JSON_UNESCAPED_SLASHES);
             if ($json !== false && $json !== $stored) {
                 $this->store->save($json);

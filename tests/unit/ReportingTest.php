@@ -209,8 +209,32 @@ final class ReportingTest extends TestCase
 
         self::assertNull($result?->event, 'no new installed report');
         self::assertSame([], $this->calls);
-        self::assertSame($stored, $this->store->json, 'same storage format');
+        // Plugin Health 0.2+ adds keyChecks and reportedKeyStatuses (null with one key); everything else is kept.
+        self::assertSame(json_decode($stored, true) + ['keyChecks' => null, 'reportedKeyStatuses' => null], json_decode($this->store->json, true), 'same storage format');
         self::assertSame('2026-10-13T08:00:00Z', $this->reporting()->lastCheck()?->checkedAt);
+    }
+
+    public function testSendConfigurationSendsModulesAndTheLanguageMapping(): void
+    {
+        $result = $this->reporting()->sendConfiguration(
+            [['name' => 'tractorcow/silverstripe-fluent', 'version' => '8.0.0', 'active' => true, 'type' => 'module']],
+            [['code' => 'en_US', 'supertext' => 'en-US'], ['code' => 'de_CH', 'supertext' => 'de-CH'], ['code' => 'en_IE', 'supertext' => null]],
+        );
+
+        self::assertSame('extensions', $result?->event);
+        self::assertTrue($result?->sent);
+        [$report] = $this->reports();
+        self::assertSame('extensions', $report['event']);
+        self::assertSame([['name' => 'tractorcow/silverstripe-fluent', 'version' => '8.0.0', 'active' => true, 'type' => 'module']], $report['extensions']);
+        self::assertSame([['code' => 'en_US', 'supertext' => 'en-US'], ['code' => 'de_CH', 'supertext' => 'de-CH'], ['code' => 'en_IE', 'supertext' => null]], $report['languages']);
+    }
+
+    public function testSendConfigurationSendsNothingWithReportsOff(): void
+    {
+        $result = $this->reporting(enabled: false)->sendConfiguration([['name' => 'a/b']], [['code' => 'de_CH', 'supertext' => 'de-CH']]);
+
+        self::assertFalse((bool) $result?->sent);
+        self::assertSame([], $this->reports());
     }
 
     public function testPingAnswers(): void
