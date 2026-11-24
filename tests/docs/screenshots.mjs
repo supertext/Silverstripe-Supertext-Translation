@@ -120,7 +120,7 @@ async function pageId(page) {
 {
   const page = await session(need('DEMO_ADMIN_EMAIL'), need('DEMO_ADMIN_PASSWORD'))
   await go(page, '/admin/supertext/')
-  await page.locator('button.supertext-test').click()
+  await page.locator('button.supertext-test:not(.supertext-config)').click()
   await page.locator('.toast, .notice-item').first().waitFor({ timeout: 30_000 })
   await page.waitForTimeout(500)
   // Clicking the button scrolls it into view; show the section from the top (Connection).

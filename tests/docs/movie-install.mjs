@@ -107,7 +107,7 @@ await kit.say('Now sign in to the CMS as an administrator, and open Supertext in
   during: async () => {
     await kit.hold(600)
     await kit.click(menu('Supertext'))
-    await page.locator('button.supertext-test').waitFor()
+    await page.locator('button.supertext-test:not(.supertext-config)').waitFor()
     await settle()
   },
 })
@@ -118,7 +118,7 @@ await kit.say('The API key comes from the environment variable. ', {
 await kit.say('Click Test connection. The API key check shows that the connection to Supertext works.', {
   caption: 'Click <b>Test connection</b>: <b>the connection to Supertext works</b>',
   during: async () => {
-    await kit.click(page.locator('button.supertext-test'))
+    await kit.click(page.locator('button.supertext-test:not(.supertext-config)'))
     await page.locator('.toast, .notice-item').filter({ hasText: 'the connection to Supertext works' }).first().waitFor({ timeout: 30_000 })
     await kit.sync()
     await page.evaluate(() => document.querySelectorAll('.cms-content *').forEach((e) => { if (e.scrollTop) e.scrollTop = 0 }))
