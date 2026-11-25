@@ -6,13 +6,14 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Added
 
+- Tested with PHP 8.6 (the unit tests now run on PHP 8.3 to 8.6).
 - **Send configuration to Supertext** in the Supertext section (administrators, below *Test connection*): sends Supertext the installed modules and themes (name, version) and every Fluent locale with its Supertext language, so Supertext support can help better. Only when clicked, and only while version information is on. In English, German, French and Italian. Bundled Supertext Plugin Health updated to 0.4.0.
 
 ### Changed
 
 - The screenshots in the guides show real Supertext translations (taken with the live API in CI instead of the stand-in's fixed texts).
 - `composer.json` links the documentation (`support.docs`) to the README.
-- Tested with Silverstripe framework 6.3.8 and Fluent 8.2.4: the demo and its CI check now run them (with Guzzle 7.16.3), and CI's database is MySQL 9.7 LTS (was 8.4).
+- Tested with Silverstripe framework 6.3.10 and Fluent 8.2.4: the demo and its CI check now run them (with Guzzle 7.17.0), and CI's database is MySQL 9.7 LTS (was 8.4). Framework 6.3.10 fixes the security issues SS-2026-008 and SS-2026-009: update your site's `silverstripe/framework` too.
 
 ## 1.0.0 — 2026-11-10
 
