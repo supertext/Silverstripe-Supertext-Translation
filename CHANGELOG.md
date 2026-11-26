@@ -6,6 +6,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Added
 
+- Indonesian, Romanian, Thai and Vietnamese (`id`, `ro`, `th`, `vi`) can be chosen as Supertext languages, all with formal and informal address (Supertext SDK 0.7.0).
 - Tested with PHP 8.6 (the unit tests now run on PHP 8.3 to 8.6).
 - **Send configuration to Supertext** in the Supertext section (administrators, below *Test connection*): sends Supertext the installed modules and themes (name, version) and every Fluent locale with its Supertext language, so Supertext support can help better. Only when clicked, and only while version information is on. In English, German, French and Italian. Bundled Supertext Plugin Health updated to 0.4.0.
 
